@@ -3,9 +3,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:waste_management_app/utils/Constants.dart';
+import 'Driver/Accounts/Account Setting/language_provider.dart';
 import 'Driver/Screens/Driver_dash_page.dart';
-import 'Driver/Screens/driver_home_page.dart';
-import 'Screens/Account Setting/language_provider.dart';
 
 Future main() async{
   WidgetsFlutterBinding.ensureInitialized();

@@ -5,9 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
-import '../../../Services/User_services.dart';
 
-class driver_camera {
+class CameraPage {
   final ImagePicker _picker = ImagePicker();
 
   final TextEditingController _address = TextEditingController();

@@ -7,7 +7,7 @@ import 'package:waste_management_app/validation/register.dart';
 import '../../Services/User_services.dart';
 import '../../utils/Constants.dart';
 
-import '../Screens/Homes/Home.dart';
+import '../User/Screens/Homes/Home.dart';
 import 'forgot.dart';
 
 class LoginScreen extends StatelessWidget {

@@ -46,7 +46,17 @@ class _DriverRequestListPageState extends State<DriverRequestListPage> {
                       onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => DriverRequestDetailsPage(),
+                          builder: (context) => DriverRequestDetailsPage(req: {
+                            "postId": "12345",
+                            "images": [
+                              "https://yourdomain.com/image1.jpg",
+                              "https://yourdomain.com/image2.jpg"
+                            ],
+                            "lat": 26.788781,
+                            "lng": 81.125871,
+                            "username": "Chandan Kumar",
+                            "avatar": "https://yourdomain.com/userdp.jpg",
+                          },),
                         ),
                       ),
                       child: const Text('View'),

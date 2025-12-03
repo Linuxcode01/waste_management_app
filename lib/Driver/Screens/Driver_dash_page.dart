@@ -1,9 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import 'driver_camera.dart';
 import 'driver_home_page.dart';
 import 'driver_profil.dart';
 

@@ -6,8 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../Help&Support/feedback.dart';
 import '../../Help&Support/help_and_support.dart';
-import '../../Screens/Account Setting/language.dart';
-import '../../Screens/Account Setting/language_provider.dart';
+import '../../User/Screens/Account Setting/language.dart';
+import '../../User/Screens/Account Setting/language_provider.dart';
 import '../../utils/Constants.dart';
 import '../../utils/CustomContainer.dart';
 import '../../validation/login.dart';

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../utils/Constants.dart';
 import '../../Services/User_services.dart';
-import '../Screens/Homes/Home.dart';
+import '../User/Screens/Homes/Home.dart';
+
 
 class OtpPage extends StatefulWidget {
   final String email;

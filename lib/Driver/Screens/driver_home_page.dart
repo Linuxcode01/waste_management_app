@@ -1,9 +1,11 @@
 import 'dart:async';
-
+import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:http/http.dart' as http;
 import 'driver_request_details_page.dart';
 import 'driver_request_list_page.dart';
 import 'driver_service.dart';
@@ -50,7 +52,6 @@ class _DriverHomePageState extends State<DriverHomePage> {
   final service = DriverService();
   bool streaming = false;
 
-
   GoogleMapController? _mapController;
   LatLng? _currentLatLng;
   StreamSubscription<Position>? _positionStream;
@@ -89,6 +90,22 @@ class _DriverHomePageState extends State<DriverHomePage> {
   //   super.dispose();
   // }
 
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    FlutterBackgroundService().on("showPopup").listen((event) {
+      if (event == null) return;
+
+      showRequestPopup(
+        event["requestId"],
+        event["lat"],
+        event["lng"],
+        event["driverLat"],
+        event["driverLng"],
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -159,9 +176,36 @@ class _DriverHomePageState extends State<DriverHomePage> {
             //     ),
             //   ),
             // ),
+            const SizedBox(height: 10),
 
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                // ElevatedButton(
+                //   onPressed: () => Navigator.push(
+                //     context,
+                //     MaterialPageRoute(
+                //       builder: (context) => DriverRequestListPage(),
+                //     ),
+                //   ),
+                //   child: const Text('View Pending Requests'),
+                // ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (!streaming) {
+                      streaming = true;
+                      Geolocator.getPositionStream().listen((pos) {
+                        service.updateLocation(pos.latitude, pos.longitude);
+                      });
+                    }
+                  },
+                  //onPressed: () => Navigator.pushNamed(context, '/driver/live'),
+                  child: const Text('Go Live'),
+                ),
+              ],
+            ),
 
-            const SizedBox(height: 20),
+            SizedBox(height: 15),
 
             // TODAY'S REQUESTS PREVIEW (two example cards)
             const Text(
@@ -183,7 +227,19 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => DriverRequestDetailsPage(),
+                        builder: (context) => DriverRequestDetailsPage(
+                          req: {
+                            "postId": "12345",
+                            "images": [
+                              "https://yourdomain.com/image1.jpg",
+                              "https://yourdomain.com/image2.jpg",
+                            ],
+                            "lat": 26.788781,
+                            "lng": 81.125871,
+                            "username": "Chandan Kumar",
+                            "avatar": "https://yourdomain.com/userdp.jpg",
+                          },
+                        ),
                       ),
                     );
                   },
@@ -194,58 +250,30 @@ class _DriverHomePageState extends State<DriverHomePage> {
 
             const SizedBox(height: 8),
 
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: ListTile(
-                leading: const Icon(Icons.gps_fixed, color: Colors.orange),
-                title: const Text('Request #124'),
-                subtitle: const Text('Location: 26.125, 82.900'),
-                trailing: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => DriverRequestDetailsPage(),
-                      ),
-                    );
-                  },
-                  child: const Text('View'),
-                ),
-              ),
-            ),
-
+            // Card(
+            //   shape: RoundedRectangleBorder(
+            //     borderRadius: BorderRadius.circular(14),
+            //   ),
+            //   child: ListTile(
+            //     leading: const Icon(Icons.gps_fixed, color: Colors.orange),
+            //     title: const Text('Request #124'),
+            //     subtitle: const Text('Location: 26.125, 82.900'),
+            //     trailing: ElevatedButton(
+            //       onPressed: () {
+            //         Navigator.push(
+            //           context,
+            //           MaterialPageRoute(
+            //             builder: (context) => DriverRequestDetailsPage(),
+            //           ),
+            //         );
+            //       },
+            //       child: const Text('View'),
+            //     ),
+            //   ),
+            // ),
             const SizedBox(height: 20),
 
             // ACTION BUTTONS
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DriverRequestListPage(),
-                    ),
-                  ),
-                  child: const Text('View Pending Requests'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (!streaming) {
-                      streaming = true;
-                      Geolocator.getPositionStream().listen((pos) {
-                        service.updateLocation(pos.latitude, pos.longitude);
-                      });
-                    }
-                  },
-                  //onPressed: () => Navigator.pushNamed(context, '/driver/live'),
-                  child: const Text('Go Live'),
-                ),
-              ],
-            ),
-
             SizedBox(height: 20),
             // QUICK ACTIONS GRID
             const Text(
@@ -262,13 +290,23 @@ class _DriverHomePageState extends State<DriverHomePage> {
               crossAxisSpacing: 8,
               children: [
                 _quickButton(Icons.list, 'Pending Requests', () {
-                  Navigator.pushNamed(context, '/driver/requests');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DriverRequestListPage(),
+                    ),
+                  );
                 }),
                 // _quickButton(Icons.location_searching, 'Live Tracking', () {
                 //   Navigator.pushNamed(context, '/driver/live');
                 // }),
                 _quickButton(Icons.history, 'Completed Tasks', () {
-                  Navigator.pushNamed(context, '/driver/completed');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DriverRequestListPage(),
+                    ),
+                  );
                 }),
                 // _quickButton(Icons.route, 'Navigation Mode', () {
                 //   // toggle navigation mode or open maps
@@ -337,6 +375,77 @@ class _DriverHomePageState extends State<DriverHomePage> {
           Text(label, textAlign: TextAlign.center),
         ],
       ),
+    );
+  }
+
+  double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    const double R = 6371;
+    double dLat = (lat2 - lat1) * pi / 180;
+    double dLon = (lon2 - lon1) * pi / 180;
+
+    double a =
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1 * pi / 180) *
+            cos(lat2 * pi / 180) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c;
+  }
+
+  void showRequestPopup(
+    String requestId,
+    double userLat,
+    double userLng,
+    double driverLat,
+    double driverLng,
+  ) {
+    final dist = calculateDistance(driverLat, driverLng, userLat, userLng);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: Text("New Ride Request"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("Request ID: $requestId"),
+            Text("Location: $userLat, $userLng"),
+            Text("Distance: ${dist.toStringAsFixed(2)} km"),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              acceptRequest(requestId);
+              Navigator.pop(context);
+            },
+            child: Text("ACCEPT"),
+          ),
+          TextButton(
+            onPressed: () {
+              cancelRequest(requestId);
+              Navigator.pop(context);
+            },
+            child: Text("CANCEL"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> acceptRequest(String requestId) async {
+    await http.post(
+      Uri.parse("https://yourapi.com/accept"),
+      body: {"driverId": "10", "requestId": requestId},
+    );
+  }
+
+  Future<void> cancelRequest(String requestId) async {
+    await http.post(
+      Uri.parse("https://yourapi.com/cancel"),
+      body: {"driverId": "10", "requestId": requestId},
     );
   }
 }

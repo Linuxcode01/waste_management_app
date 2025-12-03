@@ -1,5 +1,6 @@
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart';
 
 class Location {
   Future<Position?> getLocation() async {
@@ -25,6 +26,12 @@ class Location {
     List<Placemark> placeMarks = await placemarkFromCoordinates(lat, lng);
     final place = placeMarks.first;
     return "${place.locality}, ${place.administrativeArea}";
+  }
+
+
+  Future<Future<Position?>> getCoordinate() async{
+    final pos = getLocation();
+    return pos;
   }
 
   Future<String> loadLocation() async {
