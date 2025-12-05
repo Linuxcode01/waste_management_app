@@ -344,7 +344,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     ),
                     const CircleAvatar(
                       radius: 35,
-                      backgroundColor: Colors.green,
+                      backgroundColor: Color(0XFF00A884),
                       child: Icon(Icons.check, color: Colors.white, size: 35),
                     ),
                   ],
