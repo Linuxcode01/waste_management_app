@@ -1,24 +1,41 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../Services/User_services.dart';
+import '../../../socket_service.dart';
 
-class CameraPage {
+class CameraPage{
   final ImagePicker _picker = ImagePicker();
-
+  final socketService = SocketService();
   final TextEditingController _address = TextEditingController();
   final TextEditingController _weight = TextEditingController();
   final TextEditingController _note = TextEditingController();
   String? selectedWasteType = "dry waste";
+  Position? pos;
+
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString("user_data");
+
+    if (data == null) return null;
+
+    final jsonData = jsonDecode(data);
+    return jsonData["token"];
+  }
 
   // ============================
   // 🔥 FETCH USER LOCATION
   // ============================
   Future<void> _fetchLocation(
-      BuildContext context, void Function(void Function()) setState) async {
+    BuildContext context,
+    void Function(void Function()) setState,
+  ) async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
       //_currentPosition = await Geolocator.getCurrentPosition();
@@ -30,18 +47,20 @@ class CameraPage {
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Location permission denied")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Location permission denied")));
         return;
       }
 
-      Position pos = await Geolocator.getCurrentPosition(
+      pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      List<Placemark> placemarks =
-      await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        pos!.latitude,
+        pos!.longitude,
+      );
 
       final place = placemarks.first;
       final formatted =
@@ -49,14 +68,70 @@ class CameraPage {
 
       setState(() => _address.text = formatted);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to fetch location")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to fetch location")));
     }
   }
 
-  void show(BuildContext context) {
+
+  Future<void> show(BuildContext context) async {
     List<File> images = [];
+
+
+
+    final token = await _getToken();
+    if (token == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("User not logged in")));
+      return;
+    }
+
+    submitReport() async {
+      var res = await UserServices().sendReport(
+        images: images,
+        latitude: pos!.latitude,
+        longitude: pos!.longitude,
+        type: selectedWasteType ?? "dry waste",
+        token: token,
+        address: _address.text,
+        weight: _weight.text,
+        notes: _note.text,
+      );
+
+      if (res['success'] == true) {
+
+        // 🔥 Send realtime update to driver
+        socketService.socket.emit("new_report", {
+          "postId" : res['report']['_id'],
+          "images": images.map((e) => e.path.split('/').last).toList(),
+          "lat": pos!.latitude,
+          "lng": pos!.longitude,
+          "address": _address.text,
+          "type": selectedWasteType,
+          "weight": _weight.text,
+          "notes": _note.text,
+          "createdAt": DateTime.now().toIso8601String(),
+        });
+
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Report submitted"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Report submitted"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
 
     showDialog(
       context: context,
@@ -65,12 +140,14 @@ class CameraPage {
         builder: (context, setState) {
           // 🔥 Auto fetch location once when dialog opens
           if (_address.text.isEmpty) {
-            Future.delayed(Duration.zero,
-                    () => _fetchLocation(context, setState));
+            Future.delayed(
+              Duration.zero,
+              () => _fetchLocation(context, setState),
+            );
           }
 
           return AlertDialog(
-            insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 40),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -100,26 +177,26 @@ class CameraPage {
                       ),
                       child: images.isEmpty
                           ? const Center(
-                        child: Text(
-                          "No photos captured",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      )
+                              child: Text(
+                                "No photos captured",
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            )
                           : ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: images.length,
-                        itemBuilder: (_, index) => Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.file(
-                              images[index],
-                              width: 110,
-                              fit: BoxFit.cover,
+                              scrollDirection: Axis.horizontal,
+                              itemCount: images.length,
+                              itemBuilder: (_, index) => Padding(
+                                padding: const EdgeInsets.only(right: 10),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    images[index],
+                                    width: 110,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ),
                     ),
 
                     const SizedBox(height: 18),
@@ -179,11 +256,17 @@ class CameraPage {
                       ),
                       items: const [
                         DropdownMenuItem(
-                            value: "dry waste", child: Text("Dry Waste")),
+                          value: "dry waste",
+                          child: Text("Dry Waste"),
+                        ),
                         DropdownMenuItem(
-                            value: "bio waste", child: Text("Bio Waste")),
+                          value: "bio waste",
+                          child: Text("Bio Waste"),
+                        ),
                         DropdownMenuItem(
-                            value: "solid waste", child: Text("Solid Waste")),
+                          value: "solid waste",
+                          child: Text("Solid Waste"),
+                        ),
                         DropdownMenuItem(value: "all", child: Text("All")),
                       ],
                       onChanged: (v) {
@@ -227,26 +310,17 @@ class CameraPage {
                 child: const Text("Cancel"),
               ),
               ElevatedButton(
-                onPressed: images.length < 3
+                onPressed: images.isEmpty || images.length < 3
                     ? null
-                    : () async {
-                  // UserServices().sendReport(
-                  //   images: images,
-                  //   latitude: permission!.latitude,
-                  //   longitude: permission!.longitude,
-                  //   type: selectedWasteType ?? "dry waste",
-                  //   token: _userToken!,
-                  //   address: _address.text,
-                  //   weight: _weight.text,
-                  //   notes: _note.text,
-                  // );
-                  Navigator.pop(context);
-
-                },
+                    : () {
+                        submitReport();
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -259,5 +333,4 @@ class CameraPage {
       ),
     );
   }
-
 }

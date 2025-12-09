@@ -3,8 +3,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:waste_management_app/utils/Constants.dart';
+import 'package:waste_management_app/validation/login.dart';
 import 'Driver/Accounts/Account Setting/language_provider.dart';
 import 'Driver/Screens/Driver_dash_page.dart';
+import 'User/Screens/Homes/Home.dart';
 
 Future main() async{
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,10 +45,11 @@ class MyApp extends StatelessWidget {
                 fontFamily: "Regular"
             ),
 
-            // home: Constants.prefs!.getBool("loggedIn") == true
-            //     ? Home()
-            //     : LoginScreen(),
-            home: driver_dash(),
+            home: Constants.prefs!.getBool("loggedIn") == true
+
+                ? (Constants.prefs!.getBool("driver") == true) ? driver_dash(): Home()
+                : LoginScreen(),
+            // home: driver_dash(),
           );
         },
       ),

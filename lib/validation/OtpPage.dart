@@ -3,7 +3,6 @@ import '../../utils/Constants.dart';
 import '../../Services/User_services.dart';
 import '../User/Screens/Homes/Home.dart';
 
-
 class OtpPage extends StatefulWidget {
   final String email;
   const OtpPage({super.key, required this.email});
@@ -13,8 +12,10 @@ class OtpPage extends StatefulWidget {
 }
 
 class _OtpPageState extends State<OtpPage> {
-  final List<TextEditingController> controllers =
-  List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> controllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
 
   @override
   void dispose() {
@@ -24,31 +25,31 @@ class _OtpPageState extends State<OtpPage> {
     super.dispose();
   }
 
-
   Future<void> verify() async {
     final otp = controllers.map((e) => e.text).join();
 
-    print ("OTP entered: $otp");
+    print("OTP entered: $otp");
 
     if (otp.length != 6) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Enter full OTP")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Enter full OTP")));
       return;
     }
 
     try {
-       var response = await UserServices().verifyOtp(widget.email.trim(), otp, context);
+      // print("email from verify opt $widget.email");
+      var response = await UserServices().verifyOtp(
+        widget.email.trim(),
+        otp,
+        context,
+      );
 
-       print("Otp page $response");
+      print("Otp page $response");
 
-       var data = response;
+      var data = response;
 
-      if(data['success'] == true) {
-        // Map<String, dynamic> cleanData = {
-        //   "user": data["user"] ?? {},
-        //   "request_status": data["request_status"] ?? "No active request",
-        //   "token": data["token"] ?? "",
-        // };
+      if (data['success'] == true) {
 
         Constants().saveUserData(response);
 
@@ -57,14 +58,36 @@ class _OtpPageState extends State<OtpPage> {
           MaterialPageRoute(builder: (_) => Home()),
         );
       } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text("Invalid OTP")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Invalid OTP")));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context)
-         .showSnackBar(SnackBar(content: Text("Error: $e")));
-   }
- }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
+  Future<void> resend() async {
+    try {
+      // print("email from resent otp $widget.email");
+
+      var response = await UserServices().resendOtp(widget.email.trim(), context);
+      print(response.toString());
+      if (response['success'] == true) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Otp send successfully"),backgroundColor: Colors.green,));
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed send Otp"),backgroundColor: Colors.red,));
+      }
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,10 +101,9 @@ class _OtpPageState extends State<OtpPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Enter the OTP sent to",
-                style: TextStyle(fontSize: 22)),
+            const Text("Enter the OTP sent to", style: TextStyle(fontSize: 22)),
             Text(
-               widget.email,
+              widget.email,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
             ),
 
@@ -92,7 +114,7 @@ class _OtpPageState extends State<OtpPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(
                 6,
-                    (index) => SizedBox(
+                (index) => SizedBox(
                   width: 48,
                   height: 55,
                   child: TextField(
@@ -120,16 +142,19 @@ class _OtpPageState extends State<OtpPage> {
 
             // Submit Button
             GestureDetector(
-               onTap: verify,
+              onTap: verify,
               child: Container(
                 width: double.infinity,
                 height: 55,
                 decoration: BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(10)),
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: const Center(
-                  child: Text("Submit",
-                      style: TextStyle(fontSize: 22, color: Colors.white)),
+                  child: Text(
+                    "Submit",
+                    style: TextStyle(fontSize: 22, color: Colors.white),
+                  ),
                 ),
               ),
             ),
@@ -138,22 +163,31 @@ class _OtpPageState extends State<OtpPage> {
 
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children:  [
+              children: [
                 Container(
                   child: Row(
                     children: [
-                      Text("Didn't get OTP?",
-                          style: TextStyle(fontSize: 16, color: Colors.black)),
-                      Text("  Resend in 120s",
-                          style: TextStyle(fontSize: 16, color: Colors.grey)),
+                      Text(
+                        "Didn't get OTP?",
+                        style: TextStyle(fontSize: 16, color: Colors.black),
+                      ),
+                      Text(
+                        "  Resend in 120s",
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
                     ],
                   ),
                 ),
                 Container(
-                  child: Text("Resend", style: TextStyle(
-                      fontSize: 16, color: Colors.green
-                  ),),
-                )
+                  child: GestureDetector(
+                    onTap: resend,
+
+                    child: Text(
+                      "Resend",
+                      style: TextStyle(fontSize: 16, color: Colors.green),
+                    ),
+                  ),
+                ),
               ],
             ),
           ],

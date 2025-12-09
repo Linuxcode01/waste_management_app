@@ -34,3 +34,41 @@ class User {
 
 
 }
+
+class ReportModel {
+  final String id;
+  final String address;
+  final double lat;
+  final double lng;
+  final String type;
+  final String weight;
+  final String createdAt;
+  final List<String> photos;
+
+  ReportModel({
+    required this.id,
+    required this.address,
+    required this.lat,
+    required this.lng,
+    required this.type,
+    required this.weight,
+    required this.createdAt,
+    required this.photos,
+  });
+
+  factory ReportModel.fromJson(Map<String, dynamic> json) {
+    return ReportModel(
+      id: json["_id"],
+      address: json["location"]["address"],
+      lat: json["location"]["lat"],
+      lng: json["location"]["lng"],
+      type: json["type"]["reportedType"],
+      weight: json["weight"]["reportedWeight"],
+      createdAt: json["timestamps"]["createdAt"],
+      photos: (json["photos"] as List)
+          .map((p) => p["url"].toString())
+          .toList(),
+    );
+  }
+}
+

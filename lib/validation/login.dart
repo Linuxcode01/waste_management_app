@@ -7,6 +7,7 @@ import 'package:waste_management_app/validation/register.dart';
 import '../../Services/User_services.dart';
 import '../../utils/Constants.dart';
 
+import '../Driver/Screens/Driver_dash_page.dart';
 import '../User/Screens/Homes/Home.dart';
 import 'forgot.dart';
 
@@ -21,6 +22,7 @@ class LoginScreen extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final height = size.height;
     final width = size.width;
+
 
     signUp() async {
       try {
@@ -37,21 +39,34 @@ class LoginScreen extends StatelessWidget {
         print(data);
 
         if (data['success'] == true) {
-          // Map<String, dynamic> cleanData = {
-          //   "user": data["user"] ?? {},
-          //   "token": data["token"] ?? "",
-          // };
 
+
+          final role = data['user']['role']?.toString().toUpperCase();
+          print(role);
+
+          if(role == "DRIVER"){
+            Constants.prefs?.setBool("driver", true);
+          }else{
+            Constants.prefs?.setBool("driver", false);
+          }
 
           Constants().saveUserData(response);
 
 
           Constants.prefs?.setBool("loggedIn", true);
 
-          Navigator.pushReplacement(
+          if (role == "DRIVER") {
+            Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                  builder: (context) => Home()));
+              MaterialPageRoute(builder: (_) => driver_dash()),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => Home()),
+            );
+          }
+
 
           print("login page : $data");
           return data;
@@ -64,17 +79,6 @@ class LoginScreen extends StatelessWidget {
 
         }
 
-        // if (res['success'] == true) {
-        //   Navigator.pushReplacement(
-        //       context,
-        //       MaterialPageRoute(
-        //           builder: (context) => HomePageContent(
-        //                 apiData: res,
-        //               )));
-        // } else {
-        //   ScaffoldMessenger.of(context)
-        //       .showSnackBar(SnackBar(content: Text("Invalid Credentials")));
-        // }
       } catch (e) {
         throw Exception(e.toString());
       }

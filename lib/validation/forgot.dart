@@ -22,15 +22,15 @@ class Forgot extends StatelessWidget {
             .showSnackBar(SnackBar(content: Text("Please enter your email")));
         return;
       }
-      var data = UserServices().forgetPassword(email.trim(), context);
+      var data = await UserServices().forgetPassword(email.trim(), context);
       print(data);
       if(data['success'] != true){
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("${data['message']}")));
+            .showSnackBar(SnackBar(content: Text("${data['message']}"),backgroundColor: Colors.red,));
         return;
       }else{
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("OTP sent to $email")));
+            .showSnackBar(SnackBar(content: Text("OTP sent to $email"),backgroundColor: Colors.green,));
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -53,7 +53,7 @@ class Forgot extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Reset forgot password",
+                  "Reset password",
                   style: TextStyle(
                     fontSize: width * 0.07,
                     fontWeight: FontWeight.bold,

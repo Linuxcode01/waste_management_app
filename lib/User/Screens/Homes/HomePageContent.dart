@@ -2,12 +2,15 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../../../Location/Location.dart';
-
+import '../../../Services/User_services.dart';
+import '../../../models/Usermodel.dart';
+import '../../../socket_service.dart';
 
 class HomePageContent extends StatefulWidget {
   // final Map<String, dynamic> apiData;
+
 
   const HomePageContent({super.key});
 
@@ -17,33 +20,82 @@ class HomePageContent extends StatefulWidget {
 
 class _HomePageContentState extends State<HomePageContent> {
   String? userLocation;
+  late Future<List<ReportModel>> _future;
+  final socketService = SocketService();
 
   Map<String, dynamic>? user;
-
 
   Future<Map<String, dynamic>?> getUserData() async {
     final prefs = await SharedPreferences.getInstance();
 
+    final rawdata = prefs.getString("user_data");
+    if (rawdata == null) return null;
+
+    final data = jsonDecode(rawdata);
+    var id =  data['user']['_id'];
+    return id;
+  }
+
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
     final data = prefs.getString("user_data");
     if (data == null) return null;
 
-    return jsonDecode(data);
+    return jsonDecode(data)["token"];
   }
 
+ _userId() async{
+    final User_id = await getUserData();
+    // print( "user id : $User_id");
+    if (User_id != null) return;
+    return User_id;
+ }
+
+  _load() async {
+    final token = await _getToken();
+    if (token == null) return;
+
+    setState(() {
+      _future = UserServices().fetchReports(token);
+    });
+  }
 
   @override
   void initState() {
     // TODO: implement initState
-    super.initState();
+
+    _userId();
     loadUser();
     fetchLocation();
+    _load();
+
+    socketService.initSocket();
+    socketService.connect();
+
+    socketService.on("connect", (_) {
+      print("User connected");
+
+      socketService.emit("user_connect", {
+        "userId": _userId(),
+        "id": socketService.socket.id,
+
+      });
+    });
+    super.initState();
+
+  }
+
+
+  @override
+  void dispose() {
+    // DON'T disconnect here if app full me socket run rakhna hai
+    super.dispose();
   }
 
   void loadUser() async {
     user = await getUserData();
     setState(() {});
   }
-
 
   void fetchLocation() async {
     final locationService = Location();
@@ -56,8 +108,6 @@ class _HomePageContentState extends State<HomePageContent> {
 
   @override
   Widget build(BuildContext context) {
-
-
     final size = MediaQuery.of(context).size;
     final height = size.height;
     final width = size.width;
@@ -66,8 +116,6 @@ class _HomePageContentState extends State<HomePageContent> {
     // final String name = user['name'] ?? "User";
     // print("user from home page content $user");
     // final String requestStatus = widget.apiData['request_status'] ?? "No active request";
-
-    print(user?["user"]["name"] ?? "No Name");
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
@@ -81,7 +129,6 @@ class _HomePageContentState extends State<HomePageContent> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               // Greeting Section
               Text(
                 (userLocation == null) ? "Loading location..." : userLocation!,
@@ -200,16 +247,68 @@ class _HomePageContentState extends State<HomePageContent> {
 
               SizedBox(height: height * 0.015),
 
-              _updateCard(
-                title: "Pickup completed",
-                date: "Today • 10:20 AM",
-                width: width,
-              ),
-              SizedBox(height: height * 0.012),
-              _updateCard(
-                title: "Your request is accepted",
-                date: "Yesterday • 8:45 PM",
-                width: width,
+              // _updateCard(
+              //   title: "Pickup completed",
+              //   date: "Today • 10:20 AM",
+              //   width: width,
+              // ),
+              // SizedBox(height: height * 0.012),
+              // _updateCard(
+              //   title: "Your request is accepted",
+              //   date: "Yesterday • 8:45 PM",
+              //   width: width,
+              // ),
+              Column(
+                children: [
+                  FutureBuilder<List<ReportModel>>(
+                    future: _future,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(child: CircularProgressIndicator());
+                      }
+
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return Center(child: Text("No reports found"));
+                      }
+
+                      final reports = snapshot.data!;
+
+                      return ListView.builder(
+                        itemCount: reports.length,
+                        itemBuilder: (_, i) {
+                          final item = reports[i];
+
+                          return Card(
+                            margin: EdgeInsets.all(12),
+                            child: ListTile(
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  item.photos.first,
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              title: Text(item.type.toUpperCase()),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item.address),
+                                  Text("Weight: ${item.weight} kg"),
+                                  Text("Date: ${item.createdAt.split('T')[0]}"),
+                                ],
+                              ),
+                              onTap: () {
+                                // navigate to detail page if needed
+                              },
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -254,48 +353,43 @@ class _HomePageContentState extends State<HomePageContent> {
   }
 
   // Recent Updates Card
-  Widget _updateCard({
-    required String title,
-    required String date,
-    required double width,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(width * 0.04),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 6,
-            color: Colors.black12,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle, color: Colors.green, size: width * 0.08),
-          SizedBox(width: width * 0.04),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: width * 0.045,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                date,
-                style: TextStyle(
-                  fontSize: width * 0.035,
-                  color: Colors.black54,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _updateCard({
+  //   required String title,
+  //   required String date,
+  //   required double width,
+  // }) {
+  //   return Container(
+  //     padding: EdgeInsets.all(width * 0.04),
+  //     decoration: BoxDecoration(
+  //       color: Colors.white,
+  //       borderRadius: BorderRadius.circular(14),
+  //       boxShadow: [BoxShadow(blurRadius: 6, color: Colors.black12)],
+  //     ),
+  //     child: Row(
+  //       children: [
+  //         Icon(Icons.check_circle, color: Colors.green, size: width * 0.08),
+  //         SizedBox(width: width * 0.04),
+  //         Column(
+  //           crossAxisAlignment: CrossAxisAlignment.start,
+  //           children: [
+  //             Text(
+  //               title,
+  //               style: TextStyle(
+  //                 fontSize: width * 0.045,
+  //                 fontWeight: FontWeight.w600,
+  //               ),
+  //             ),
+  //             Text(
+  //               date,
+  //               style: TextStyle(
+  //                 fontSize: width * 0.035,
+  //                 color: Colors.black54,
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 }

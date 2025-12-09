@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -6,22 +7,42 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:socket_io_common/src/util/event_emitter.dart';
+import 'package:waste_management_app/utils/Constants.dart';
+import '../../socket_service.dart';
+import 'LocationEmitter.dart';
 import 'driver_request_details_page.dart';
 import 'driver_request_list_page.dart';
 import 'driver_service.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+
+import 'getData.dart';
+import '../../socket_service.dart';
 
 /// If you already have these in separate files, remove the local copies below
 /// and import them instead.
-class DriverViewModel {
-  bool isOnline = false;
-  bool live = false;
-  void toggleOnline() => isOnline = !isOnline;
-  void toggleLive() => live = !live;
-}
+
 
 class DriverStatusBadge extends StatelessWidget {
   final bool online;
-  const DriverStatusBadge({required this.online, super.key});
+
+  DriverStatusBadge({required this.online,super.key});
+
+
+  late double driverLat;
+  late double driverLng;
+
+  Future<void> initDriver() async {
+
+
+    // final driverId = await getUserData(); // <-- actual String value
+    // if (driverId == null) return;
+
+    final pos = await Geolocator.getCurrentPosition();
+    driverLat = pos.latitude;
+    driverLng = pos.longitude;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,71 +62,79 @@ class DriverStatusBadge extends StatelessWidget {
 
 /// Complete, fixed DriverHomePage widget
 class DriverHomePage extends StatefulWidget {
-  const DriverHomePage({super.key});
+
+  DriverHomePage({ super.key});
 
   @override
   State<DriverHomePage> createState() => _DriverHomePageState();
 }
 
+
+
 class _DriverHomePageState extends State<DriverHomePage> {
-  final vm = DriverViewModel();
   final service = DriverService();
   bool streaming = false;
+  bool isOnline = false;
+  bool live = false;
 
-  GoogleMapController? _mapController;
-  LatLng? _currentLatLng;
-  StreamSubscription<Position>? _positionStream;
+  late final String drId;
+
+
+
+
+  Future<void> toggleOnline() async {
+    drId = await getData.getDriverId();
+    print("Driver id  from getData : $drId");
+
+    if(isOnline){
+      isOnline = !isOnline;
+      // LocationEmitter().stopSending();
+      socketService.emit("driver_disconnect", {
+        "driverId": drId,
+      });
+
+      print("Driver is now OFFLINE");
+    }else{
+      isOnline = !isOnline;
+      // LocationEmitter().startSendingLocation(drId);
+      socketService.emit("driver_connect", {
+        "driverId": drId,
+        // "lat": pos.latitude,
+        // "lng": pos.longitude,
+        // "id": socketService.socket.id,
+      });
+
+      print("Driver is now ONLINE");
+    }
+
+    // setState(() {
+    //   drId = drId;
+    // });
+  }
+  void toggleLive() => live = !live;
+
+  double? driverLat;
+  double? driverLng;
+
+
+  final socketService = SocketService();
+
+  @override
+  void initState() {
+    super.initState();
+    setupSocket();
+  }
+
+  Future<void> setupSocket() async {
+    socketService.initSocket();
+    socketService.connect();
+  }
+
 
   // @override
   // void initState() {
   //   super.initState();
-  //   _startLocationUpdates();
   // }
-  //
-  // void _startLocationUpdates() async {
-  //   var permission = await Geolocator.requestPermission();
-  //   if (permission == LocationPermission.denied ||
-  //       permission == LocationPermission.deniedForever) return;
-  //
-  //   _positionStream = Geolocator.getPositionStream().listen((pos) {
-  //     setState(() {
-  //       _currentLatLng = LatLng(pos.latitude, pos.longitude);
-  //     });
-  //
-  //     // Push location to backend
-  //     service.updateLocation(pos.latitude, pos.longitude);
-  //
-  //     // Move camera smoothly
-  //     if (_mapController != null) {
-  //       _mapController!.animateCamera(
-  //         CameraUpdate.newLatLng(_currentLatLng!),
-  //       );
-  //     }
-  //   });
-  // }
-  //
-  // @override
-  // void dispose() {
-  //   _positionStream?.cancel();
-  //   super.dispose();
-  // }
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    FlutterBackgroundService().on("showPopup").listen((event) {
-      if (event == null) return;
-
-      showRequestPopup(
-        event["requestId"],
-        event["lat"],
-        event["lng"],
-        event["driverLat"],
-        event["driverLng"],
-      );
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,17 +152,17 @@ class _DriverHomePageState extends State<DriverHomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Status:', style: TextStyle(fontSize: 18)),
-                DriverStatusBadge(online: vm.isOnline),
+                DriverStatusBadge(online: isOnline,),
               ],
             ),
             const SizedBox(height: 10),
             SwitchListTile(
               title: const Text('Go Online'),
               subtitle: const Text('Enable to start receiving jobs'),
-              value: vm.isOnline,
+              value: isOnline,
               onChanged: (v) {
                 setState(() {
-                  vm.toggleOnline();
+                  toggleOnline();
                 });
               },
             ),
@@ -141,69 +170,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
             const SizedBox(height: 25),
 
             // view my location on map
-
-            // const Text(
-            //   "My Live Location",
-            //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            // ),
-            // const SizedBox(height: 10),
-            //
-            // Container(
-            //   height: 450,
-            //   decoration: BoxDecoration(
-            //     borderRadius: BorderRadius.circular(12),
-            //     border: Border.all(color: Colors.grey.shade400),
-            //   ),
-            //   child: ClipRRect(
-            //     borderRadius: BorderRadius.circular(12),
-            //     child: _currentLatLng == null
-            //         ? const Center(child: CircularProgressIndicator())
-            //         : GoogleMap(
-            //       initialCameraPosition: CameraPosition(
-            //         target: _currentLatLng!,
-            //         zoom: 16,
-            //       ),
-            //       onMapCreated: (c) => _mapController = c,
-            //       markers: {
-            //         Marker(
-            //           markerId: const MarkerId("me"),
-            //           position: _currentLatLng!,
-            //           icon: BitmapDescriptor.defaultMarkerWithHue(
-            //             BitmapDescriptor.hueAzure,
-            //           ),
-            //         ),
-            //       },
-            //     ),
-            //   ),
-            // ),
             const SizedBox(height: 10),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                // ElevatedButton(
-                //   onPressed: () => Navigator.push(
-                //     context,
-                //     MaterialPageRoute(
-                //       builder: (context) => DriverRequestListPage(),
-                //     ),
-                //   ),
-                //   child: const Text('View Pending Requests'),
-                // ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (!streaming) {
-                      streaming = true;
-                      Geolocator.getPositionStream().listen((pos) {
-                        service.updateLocation(pos.latitude, pos.longitude);
-                      });
-                    }
-                  },
-                  //onPressed: () => Navigator.pushNamed(context, '/driver/live'),
-                  child: const Text('Go Live'),
-                ),
-              ],
-            ),
 
             SizedBox(height: 15),
 
@@ -219,7 +186,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: ListTile(
-                leading: const Icon(Icons.gps_fixed, color: Colors.orange),
+                leading: const Icon(Icons.gps_fixed, color: Colors.green),
                 title: const Text('Request #123'),
                 subtitle: const Text('Location: 26.123, 82.912'),
                 trailing: ElevatedButton(
@@ -250,27 +217,6 @@ class _DriverHomePageState extends State<DriverHomePage> {
 
             const SizedBox(height: 8),
 
-            // Card(
-            //   shape: RoundedRectangleBorder(
-            //     borderRadius: BorderRadius.circular(14),
-            //   ),
-            //   child: ListTile(
-            //     leading: const Icon(Icons.gps_fixed, color: Colors.orange),
-            //     title: const Text('Request #124'),
-            //     subtitle: const Text('Location: 26.125, 82.900'),
-            //     trailing: ElevatedButton(
-            //       onPressed: () {
-            //         Navigator.push(
-            //           context,
-            //           MaterialPageRoute(
-            //             builder: (context) => DriverRequestDetailsPage(),
-            //           ),
-            //         );
-            //       },
-            //       child: const Text('View'),
-            //     ),
-            //   ),
-            // ),
             const SizedBox(height: 20),
 
             // ACTION BUTTONS
@@ -393,59 +339,83 @@ class _DriverHomePageState extends State<DriverHomePage> {
     return R * c;
   }
 
-  void showRequestPopup(
-    String requestId,
-    double userLat,
-    double userLng,
-    double driverLat,
-    double driverLng,
-  ) {
-    final dist = calculateDistance(driverLat, driverLng, userLat, userLng);
-
+  void _showReportPopup(dynamic data) {
+    double wstLat = data['lat'];
+    double wsLng = data['lng'];
+    double distance = calculateDistance(driverLat!, driverLng!, wstLat, wsLng);
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: Text("New Ride Request"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("Request ID: $requestId"),
-            Text("Location: $userLat, $userLng"),
-            Text("Distance: ${dist.toStringAsFixed(2)} km"),
+      builder: (context) {
+        return AlertDialog(
+          title: Text("New Waste Report"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (data['images'] != null && data['images'].isNotEmpty)
+                SizedBox(
+                  height: 120,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: data['images'].length,
+                    itemBuilder: (_, i) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.network(
+                            data['images'][i],
+                            width: 110,
+                            height: 110,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+              const SizedBox(height: 12),
+
+              Text("📍 Address: ${data['address'] ?? ''}"),
+              Text("🚮 Type: ${data['type'] ?? ''}"),
+              Text("⚖ Weight: ${data['weight'] ?? ''}"),
+              Text("📝 Notes: ${data['notes'] ?? ''}"),
+              Text("🕒 Time: ${data['createdAt'] ?? ''}"),
+              Text("Distance $distance"),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: Text("Close"),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              child: Text("Accept Job"),
+              onPressed: () {
+                // TODO: Accept/report logic
+                acceptRequest(data['postId']);
+
+                Navigator.pop(context);
+              },
+            ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              acceptRequest(requestId);
-              Navigator.pop(context);
-            },
-            child: Text("ACCEPT"),
-          ),
-          TextButton(
-            onPressed: () {
-              cancelRequest(requestId);
-              Navigator.pop(context);
-            },
-            child: Text("CANCEL"),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Future<void> acceptRequest(String requestId) async {
+  Future<void> acceptRequest(String postId) async {
     await http.post(
       Uri.parse("https://yourapi.com/accept"),
-      body: {"driverId": "10", "requestId": requestId},
+      body: {"driverId": "10", "postId": postId},
     );
   }
 
-  Future<void> cancelRequest(String requestId) async {
-    await http.post(
-      Uri.parse("https://yourapi.com/cancel"),
-      body: {"driverId": "10", "requestId": requestId},
-    );
-  }
+  // Future<void> cancelRequest(String postId) async {
+  //   await http.post(
+  //     Uri.parse("https://yourapi.com/cancel"),
+  //     body: {"driverId": "10", "requestId": postId},
+  //   );
+  // }
 }
