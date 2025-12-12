@@ -1,17 +1,10 @@
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'package:waste_management_app/User/UserSocket.dart';
-import 'package:waste_management_app/getData.dart';
 import '../../../Location/Location.dart';
-import '../../../Services/User_services.dart';
 import '../../../models/Usermodel.dart';
 import 'home_page_controller.dart';
 
 class HomePageContent extends StatefulWidget {
-  // final Map<String, dynamic> apiData;
 
   const HomePageContent({super.key});
 
@@ -34,13 +27,11 @@ class _HomePageContentState extends State<HomePageContent> {
     });
   }
 
-
-
   @override
- initState()  {
+  initState() {
     // _future = _loadReports();
     // Initialize before build runs
-     _future = HomePageController().loadReports();
+    _future = HomePageController().loadReports();
 
     HomePageController().loadReports().then((reports) {
       print("Reports Loaded: $reports");
@@ -48,7 +39,7 @@ class _HomePageContentState extends State<HomePageContent> {
     });
 
     HomePageController().setupSocket();
-     fetchLocation();
+    fetchLocation();
     super.initState();
   }
 
@@ -66,7 +57,16 @@ class _HomePageContentState extends State<HomePageContent> {
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-
+      appBar: AppBar(
+        title: Text(
+          (userLocation == null) ? "Loading location..." : userLocation!,
+          style: TextStyle(
+            fontSize: width * 0.04,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
@@ -76,17 +76,6 @@ class _HomePageContentState extends State<HomePageContent> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Greeting Section
-              Text(
-                (userLocation == null) ? "Loading location..." : userLocation!,
-                style: TextStyle(
-                  fontSize: width * 0.04,
-                  color: Colors.black54,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              SizedBox(height: height * 0.02),
 
               // Garbage Request Card
               Container(
@@ -217,7 +206,12 @@ class _HomePageContentState extends State<HomePageContent> {
                       }
 
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return Center(child: Text("No reports found"));
+                        return Center(
+                          child: Text(
+                            "No reports found",
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        );
                       }
 
                       final reports = snapshot.data!;
@@ -229,53 +223,157 @@ class _HomePageContentState extends State<HomePageContent> {
                         itemBuilder: (_, i) {
                           final item = reports[i];
 
-                          return Card(
-                            margin: EdgeInsets.all(12),
-                            child: ListTile(
-                              leading: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  item.photos.isNotEmpty
-                                      ? item.photos.first.url
-                                      : "https://via.placeholder.com/60",
-                                  width: 60,
-                                  height: 60,
-                                  fit: BoxFit.cover,
+                          return Container(
+                            margin: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 4,
+                                  offset: Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {},
+                              child: Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Image
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Image.network(
+                                        item.photos.isNotEmpty
+                                            ? item.photos.first.url
+                                            : "https://via.placeholder.com/80",
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+
+                                    SizedBox(width: 12),
+
+                                    // Details
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Type
+                                          Text(
+                                            item.type.reportedType,
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+
+                                          SizedBox(height: 6),
+
+                                          // Address
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.location_on_outlined,
+                                                size: 16,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  item.location.address,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.black87,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+
+                                          SizedBox(height: 4),
+
+                                          // Weight
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.line_weight_outlined,
+                                                size: 16,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                "Weight: ${item.weight.reportedWeight} kg",
+                                                style: TextStyle(fontSize: 14),
+                                              ),
+                                            ],
+                                          ),
+
+                                          SizedBox(height: 4),
+
+                                          // Date
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.calendar_today_outlined,
+                                                size: 16,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                "Date: ${item.timestamps.createdAt.split('T')[0]}",
+                                                style: TextStyle(fontSize: 14),
+                                              ),
+                                            ],
+                                          ),
+
+                                          SizedBox(height: 10),
+
+                                          // Status Chip (modern)
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: HomePageController()
+                                                  .getStatusColor(
+                                                    item.status.status,
+                                                  )
+                                                  .withOpacity(0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(5),
+                                            ),
+                                            child: Text(
+                                              HomePageController()
+                                                  .getStatusLabel(
+                                                    item.status.status,
+                                                  ),
+                                              style: TextStyle(
+
+                                                fontWeight: FontWeight.w700,
+                                                color: HomePageController()
+                                                    .getStatusColor(
+                                                      item.status.status,
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-
-                              title: Text(
-                                item.type.reportedType,
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item.location.address),
-                                  Text(
-                                    "Weight: ${item.weight.reportedWeight} kg",
-                                  ),
-                                  Text(
-                                    "Date: ${item.timestamps.createdAt.split('T')[0]}",
-                                  ),
-                                  const SizedBox(height: 10),
-
-                                  // Status text (clean + scalable)
-                                  Text(
-                                    HomePageController().getStatusLabel(
-                                      item.status.status,
-                                    ),
-                                    style: TextStyle(
-                                      color: HomePageController()
-                                          .getStatusColor(item.status.status),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              onTap: () {},
                             ),
                           );
                         },

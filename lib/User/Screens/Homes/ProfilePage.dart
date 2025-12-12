@@ -14,7 +14,6 @@ import '../Account Setting/language_provider.dart';
 import '../Account Setting/notification.dart';
 import '../Account Setting/profileDetails.dart';
 
-
 class ProfilePage extends StatefulWidget {
   // final Map<String, dynamic> apiData;
 
@@ -60,26 +59,65 @@ class _ProfilePageState extends State<ProfilePage> {
     //
     final userData = user?['user'] ?? {};
 
-
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        // backgroundColor: Colors.white70,
+        centerTitle: false,
+
         title: Row(
           children: [
             CircleAvatar(
-              radius: 25 * scale,
-              child: Image(image: AssetImage("assets/images/logo.jpg")),
+              radius: 20 * scale,
+              backgroundImage: AssetImage("assets/images/logo.jpg"),
             ),
-            SizedBox(width: 12 * scale),
+            SizedBox(width: 10 * scale),
             Text(
-              userData != null ? userData['name'] : "loading...",
+              userData != null ? userData['name'] : "Loading...",
               style: TextStyle(
-                fontSize: 20 * scale,
+                fontSize: 17 * scale,
                 fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
           ],
         ),
+
+        actions: [
+          Container(
+            margin: EdgeInsets.only(right: 15),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.monetization_on, size: 20, color: Colors.orangeAccent),
+                SizedBox(width: 4),
+                Text(
+                  "Coins",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 4),
+                Text(
+                  "25",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
+
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth > 600;
@@ -100,8 +138,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         Expanded(
                           child: customContainer.container(
-                            icon: Icon(Icons.request_page_outlined,
-                                size: 28 * scale),
+                            icon: Icon(
+                              Icons.request_page_outlined,
+                              size: 28 * scale,
+                            ),
                             text: "Pickup requested",
                             context: context,
                           ),
@@ -135,8 +175,10 @@ class _ProfilePageState extends State<ProfilePage> {
                         SizedBox(width: 10 * scale),
                         Expanded(
                           child: customContainer.container(
-                            icon: Icon(Icons.location_on_outlined,
-                                size: 28 * scale),
+                            icon: Icon(
+                              Icons.location_on_outlined,
+                              size: 28 * scale,
+                            ),
                             text: "Address",
                             context: context,
                           ),
@@ -163,8 +205,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     text: "Profile details",
                     scale: scale,
                     onTap: () {
-                      Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => ProfileDetails()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ProfileDetails()),
+                      );
                     },
                     context: context,
                   ),
@@ -178,8 +222,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         context: context,
                         onLanguageSelected: (lang) {
                           final provider = Provider.of<LanguageProvider>(
-                              context,
-                              listen: false);
+                            context,
+                            listen: false,
+                          );
                           if (lang == "English") provider.setLocale('en');
                           if (lang == "Hindi") provider.setLocale('hi');
                         },
@@ -193,8 +238,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     text: "Notifications",
                     scale: scale,
                     onTap: () {
-                      Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => notification()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => notification()),
+                      );
                     },
                     context: context,
                   ),
@@ -216,8 +263,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     text: "Give Feedback",
                     scale: scale,
                     onTap: () {
-                      Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => feedback()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => feedback()),
+                      );
                     },
                     context: context,
                   ),
@@ -227,8 +276,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     text: "Help & Support",
                     scale: scale,
                     onTap: () {
-                      Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => HelpSupportPage()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => HelpSupportPage()),
+                      );
                     },
                     context: context,
                   ),
@@ -280,8 +331,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       Constants.prefs?.setBool("loggedIn", false);
                       Constants.prefs?.setString("user_data", "");
 
-                      Navigator.pushReplacement(context,
-                          MaterialPageRoute(builder: (_) => LoginScreen()));
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => LoginScreen()),
+                      );
                     },
                     context: context,
                   ),

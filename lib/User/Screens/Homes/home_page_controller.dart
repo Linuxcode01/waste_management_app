@@ -61,7 +61,7 @@ class HomePageController {
       case "submitted":
         return Colors.green;
       default:
-        return Colors.black87;
+        return Colors.yellow;
     }
   }
 }
