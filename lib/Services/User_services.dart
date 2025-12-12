@@ -175,88 +175,70 @@ class UserServices {
     }
   }
 
-  Future<List<ReportModel>> fetchReports(String token) async{
-    try{
 
-      var res = await http.post(
+  Future<List<ReportModel>> fetchReports(String token) async {
+    try {
+      print("Token is: $token");
+      var res = await http.get(
         Uri.parse("$baseUrl/api/v1/user"),
         headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json"
+          "Authorization":"Bearer $token",
+          "Content-Type": "application/json",
         },
       );
 
-      if(res.statusCode == 200){
-        var rawData = res.body;
-        var data = jsonDecode(rawData);
+      print("Status: ${res.statusCode}");
+      print("RAW RESPONSE: ${res.body}");
 
-        final List report = data["reports"];
+      if (res.statusCode == 200) {
+        var data = jsonDecode(res.body);
 
-        return report.map((e) => ReportModel.fromJson(e)).toList();
+        print("DECODED: $data"); // <-- PUT THIS
+        print("REPORTS FIELD: ${data["reports"]}");
 
-      }else{
+        final List list = data["reports"] ?? [];
+
+        return list.map((e) => ReportModel.fromJson(e)).toList();
+      } else {
         throw Exception("Failed to load report");
       }
-
-    }catch(e){
+    } catch (e) {
+      print("ERROR: $e");
       throw Exception(e.toString());
     }
-
-
   }
 
-  // sendReport({
-  //   required List<File> images,
-  //   required double latitude,
-  //   required double longitude,
-  //   required String type,
-  //   required String token,
-  //   String? address,
-  //   String? weight,
-  //   String? notes,
-  // }) async {
+
+  // Future<List<ReportModel>> fetchReports(String token) async {
+  //   try {
+  //     var res = await http.post(
+  //       Uri.parse("$baseUrl/api/v1/user"),
+  //       headers: {
+  //         "Authorization": token,
+  //         "Content-Type": "application/json"
+  //       },
+  //     );
   //
-  //   print("$latitude  $longitude");
+  //     if (res.statusCode == 200) {
+  //       var data = jsonDecode(res.body);
   //
-  //   final uri = Uri.parse("$baseUrl/api/v1/report/make-report");
+  //       // FIX HERE
+  //       final List report = data["reports"] is String
+  //           ? jsonDecode(data["reports"])
+  //           : data["reports"];
   //
-  //   var request = http.MultipartRequest("POST", uri);
+  //       print("Parsed Reports: $report");
   //
-  //   // 🔥 Add Bearer token
-  //   request.headers["Authorization"] = token;
-  //
-  //   // 🔥 Add normal fields
-  //   request.fields["latitude"] = latitude.toString();
-  //   request.fields["longitude"] = longitude.toString();
-  //   request.fields["type"] = type;
-  //
-  //   if (address != null && address.isNotEmpty) {
-  //     request.fields["address"] = address;
-  //   }
-  //   if (weight != null && weight.isNotEmpty) {
-  //     request.fields["weight"] = weight;
-  //   }
-  //   if (notes != null && notes.isNotEmpty) {
-  //     request.fields["notes"] = notes;
-  //   }
-  //
-  //   // 🔥 Attach images
-  //   for (var img in images) {
-  //     request.files.add(await http.MultipartFile.fromPath("files", img.path));
-  //   }
-  //
-  //   // Send to server
-  //   var response = await request.send();
-  //
-  //   if (response.statusCode == 200 || response.statusCode == 201) {
-  //     //ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Uploaded Successfully")));
-  //     print("Upload successfully");
-  //   } else {
-  //     //ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload Failed: ${response.statusCode}")));
-  //
-  //     print("Upload Failed: ${response.statusCode}");
+  //       return report.map((e) => ReportModel.fromJson(e)).toList();
+  //     } else {
+  //       throw Exception("Failed to load report");
+  //     }
+  //   } catch (e) {
+  //     throw Exception(e.toString());
   //   }
   // }
+
+
 
   Future<Map<String, dynamic>> sendReport({
     required List<File> images,

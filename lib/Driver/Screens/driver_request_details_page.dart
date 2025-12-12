@@ -10,7 +10,7 @@ import '../Services/Services.dart';
 class DriverRequestDetailsPage extends StatefulWidget {
   final Map<String, dynamic> req;
 
-  DriverRequestDetailsPage({super.key, required this.req});
+  const DriverRequestDetailsPage({super.key, required this.req});
 
   @override
   State<DriverRequestDetailsPage> createState() =>
@@ -20,6 +20,8 @@ class DriverRequestDetailsPage extends StatefulWidget {
 class _DriverRequestDetailsPageState extends State<DriverRequestDetailsPage> {
   late double driverLat;
   late double driverLng;
+  late final double userLat = widget.req['Lat'];
+  late double userLng = widget.req['Lat'];
 
   void _openRequestDialog(BuildContext context) {
     final picker = ImagePicker();
@@ -207,8 +209,8 @@ class _DriverRequestDetailsPageState extends State<DriverRequestDetailsPage> {
                   itemBuilder: (context, index) {
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        images[index],
+                      child: Image.network("https://i.pinimg.com/1200x/bf/27/30/bf2730b7aa5d0acb9a7f82fc45b490e0.jpg",
+                        // images[index],
                         width: 250,
                         height: 180,
                         fit: BoxFit.cover,
@@ -223,7 +225,7 @@ class _DriverRequestDetailsPageState extends State<DriverRequestDetailsPage> {
               // ------------------ USER INFO ROW ------------------
               Row(
                 children: [
-                  CircleAvatar(radius: 26, backgroundImage: NetworkImage(avatar)),
+                  CircleAvatar(radius: 26, backgroundImage: NetworkImage("https://i.pinimg.com/736x/8b/16/7a/8b167af653c2399dd93b952a48740620.jpg")),
                   const SizedBox(width: 12),
                   Text(
                     username,
@@ -237,6 +239,7 @@ class _DriverRequestDetailsPageState extends State<DriverRequestDetailsPage> {
                   ElevatedButton(
                     onPressed: () async {
                       // handle accept logic
+                      _openMap(driverLat, driverLng, userLat, userLng);
 
                     },
                     child: Padding(

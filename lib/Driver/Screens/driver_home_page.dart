@@ -9,7 +9,9 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_common/src/util/event_emitter.dart';
+import 'package:waste_management_app/Driver/DriverSocket.dart';
 import 'package:waste_management_app/utils/Constants.dart';
+import '../../Location/Location.dart';
 import '../../socket_service.dart';
 import 'LocationEmitter.dart';
 import 'driver_request_details_page.dart';
@@ -17,33 +19,14 @@ import 'driver_request_list_page.dart';
 import 'driver_service.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
-import 'getData.dart';
+import '../../getData.dart';
 import '../../socket_service.dart';
-
-/// If you already have these in separate files, remove the local copies below
-/// and import them instead.
-
 
 class DriverStatusBadge extends StatelessWidget {
   final bool online;
 
-  DriverStatusBadge({required this.online,super.key});
-
-
-  late double driverLat;
-  late double driverLng;
-
-  Future<void> initDriver() async {
-
-
-    // final driverId = await getUserData(); // <-- actual String value
-    // if (driverId == null) return;
-
-    final pos = await Geolocator.getCurrentPosition();
-    driverLat = pos.latitude;
-    driverLng = pos.longitude;
-  }
-
+  const DriverStatusBadge({required this.online, super.key});
+  
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -62,79 +45,80 @@ class DriverStatusBadge extends StatelessWidget {
 
 /// Complete, fixed DriverHomePage widget
 class DriverHomePage extends StatefulWidget {
-
-  DriverHomePage({ super.key});
+  const DriverHomePage({super.key});
 
   @override
   State<DriverHomePage> createState() => _DriverHomePageState();
 }
-
-
 
 class _DriverHomePageState extends State<DriverHomePage> {
   final service = DriverService();
   bool streaming = false;
   bool isOnline = false;
   bool live = false;
-
+  final socket = DriverSocket().socket;
+  void toggleLive() => live = !live;
   late final String drId;
+  late double? driverLat;
+  late double? driverLng;
+  Position? pos;
 
 
 
+  void _getId() async {
+    drId = await getData.getId();
+  }
 
-  Future<void> toggleOnline() async {
-    drId = await getData.getDriverId();
-    print("Driver id  from getData : $drId");
+  Future<dynamic> toggleOnline() async {
+    if (pos != null && drId != null) {
+      if (isOnline) {
+        isOnline = !isOnline;
+        // LocationEmitter().stopSending();
+        socket.emit("driver_disconnect", {"driverId": drId});
+        print("Driver is now OFFLINE");
+      } else {
+        isOnline = !isOnline;
+        // LocationEmitter().startSendingLocation(drId);
 
-    if(isOnline){
-      isOnline = !isOnline;
-      // LocationEmitter().stopSending();
-      socketService.emit("driver_disconnect", {
-        "driverId": drId,
-      });
+        socket.emit("driver_connect", {
+          "driverId": drId,
+          "lat": driverLat,
+          "lng": driverLng,
+          "id": socket.id,
+        });
+        
+        socket.on("new_report", _showReportPopup);
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Wait for fetching Location. Retry shortly"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
-      print("Driver is now OFFLINE");
-    }else{
-      isOnline = !isOnline;
-      // LocationEmitter().startSendingLocation(drId);
-      socketService.emit("driver_connect", {
-        "driverId": drId,
-        // "lat": pos.latitude,
-        // "lng": pos.longitude,
-        // "id": socketService.socket.id,
-      });
+  Future<void> initDriver() async {
+    final location = Location(); // create object
+    pos = await location.getLocation(); // call your method
 
-      print("Driver is now ONLINE");
+    if (pos == null) {
+      print("Permission denied or location failed");
+      return;
     }
 
-    // setState(() {
-    //   drId = drId;
-    // });
+    driverLat = pos?.latitude;
+    driverLng = pos?.longitude;
+    print("$driverLat $driverLng");
   }
-  void toggleLive() => live = !live;
-
-  double? driverLat;
-  double? driverLng;
-
-
-  final socketService = SocketService();
 
   @override
   void initState() {
+    initDriver();
+    _getId();
     super.initState();
-    setupSocket();
   }
-
-  Future<void> setupSocket() async {
-    socketService.initSocket();
-    socketService.connect();
-  }
-
-
-  // @override
-  // void initState() {
-  //   super.initState();
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +136,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Status:', style: TextStyle(fontSize: 18)),
-                DriverStatusBadge(online: isOnline,),
+                DriverStatusBadge(online: isOnline),
               ],
             ),
             const SizedBox(height: 10),
@@ -188,6 +172,105 @@ class _DriverHomePageState extends State<DriverHomePage> {
               child: ListTile(
                 leading: const Icon(Icons.gps_fixed, color: Colors.green),
                 title: const Text('Request #123'),
+                subtitle: const Text('Location: 26.123, 82.912'),
+                trailing: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DriverRequestDetailsPage(
+                          req: {
+                            "postId": "12345",
+                            "images": [
+                              "https://yourdomain.com/image1.jpg",
+                              "https://yourdomain.com/image2.jpg",
+                            ],
+                            "lat": 26.788781,
+                            "lng": 81.125871,
+                            "username": "Chandan Kumar",
+                            "avatar": "https://yourdomain.com/userdp.jpg",
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('View'),
+                ),
+              ),
+            ),
+            Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.gps_fixed, color: Colors.green),
+                title: const Text('Request #124'),
+                subtitle: const Text('Location: 26.123, 82.912'),
+                trailing: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DriverRequestDetailsPage(
+                          req: {
+                            "postId": "12345",
+                            "images": [
+                              "https://yourdomain.com/image1.jpg",
+                              "https://yourdomain.com/image2.jpg",
+                            ],
+                            "lat": 26.788781,
+                            "lng": 81.125871,
+                            "username": "Chandan Kumar",
+                            "avatar": "https://yourdomain.com/userdp.jpg",
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('View'),
+                ),
+              ),
+            ),
+            Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.gps_fixed, color: Colors.green),
+                title: const Text('Request #125'),
+                subtitle: const Text('Location: 26.123, 82.912'),
+                trailing: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DriverRequestDetailsPage(
+                          req: {
+                            "postId": "12345",
+                            "images": [
+                              "https://yourdomain.com/image1.jpg",
+                              "https://yourdomain.com/image2.jpg",
+                            ],
+                            "lat": 26.788781,
+                            "lng": 81.125871,
+                            "username": "Chandan Kumar",
+                            "avatar": "https://yourdomain.com/userdp.jpg",
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('View'),
+                ),
+              ),
+            ),
+            Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.gps_fixed, color: Colors.green),
+                title: const Text('Request #126'),
                 subtitle: const Text('Location: 26.123, 82.912'),
                 trailing: ElevatedButton(
                   onPressed: () {

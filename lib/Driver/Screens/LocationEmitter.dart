@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:geolocator/geolocator.dart';
+import 'package:waste_management_app/Location/Location.dart';
+
 import '../../socket_service.dart';
 import 'Driver_dash_page.dart';
 
 class LocationEmitter {
-  final locationService = LocationService();
   final socketService = SocketService();
   Timer? timer;
 
@@ -12,12 +14,13 @@ class LocationEmitter {
 
     timer = Timer.periodic(Duration(seconds: 30), (timer) async {
       try {
-        final pos = await locationService.getCurrentLocation();
+        final locationService = Location();
+        Position? pos = await locationService.getLocation();
 
         final data = {
           "driverId": driverId,
-          "lat": pos.latitude,
-          "lng": pos.longitude,
+          "lat": pos?.latitude,
+          "lng": pos?.longitude,
         };
 
         // socketService.emit("driver_location", data, " driver update location");

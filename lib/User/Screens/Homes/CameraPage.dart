@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../Services/User_services.dart';
 import '../../../socket_service.dart';
+import '../../UserSocket.dart';
 
 class CameraPage{
   final ImagePicker _picker = ImagePicker();
@@ -102,8 +103,9 @@ class CameraPage{
 
       if (res['success'] == true) {
 
+        final socket = UserSocket().socket;
         // 🔥 Send realtime update to driver
-        socketService.socket.emit("new_report", {
+        socket.emit("new_report", {
           "postId" : res['report']['_id'],
           "images": images.map((e) => e.path.split('/').last).toList(),
           "lat": pos!.latitude,

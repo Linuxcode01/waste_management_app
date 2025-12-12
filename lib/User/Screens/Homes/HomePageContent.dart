@@ -3,14 +3,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:waste_management_app/User/UserSocket.dart';
+import 'package:waste_management_app/getData.dart';
 import '../../../Location/Location.dart';
 import '../../../Services/User_services.dart';
 import '../../../models/Usermodel.dart';
-import '../../../socket_service.dart';
+import 'home_page_controller.dart';
 
 class HomePageContent extends StatefulWidget {
   // final Map<String, dynamic> apiData;
-
 
   const HomePageContent({super.key});
 
@@ -21,81 +22,8 @@ class HomePageContent extends StatefulWidget {
 class _HomePageContentState extends State<HomePageContent> {
   String? userLocation;
   late Future<List<ReportModel>> _future;
-  final socketService = SocketService();
 
   Map<String, dynamic>? user;
-
-  Future<Map<String, dynamic>?> getUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final rawdata = prefs.getString("user_data");
-    if (rawdata == null) return null;
-
-    final data = jsonDecode(rawdata);
-    var id =  data['user']['_id'];
-    return id;
-  }
-
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString("user_data");
-    if (data == null) return null;
-
-    return jsonDecode(data)["token"];
-  }
-
- _userId() async{
-    final User_id = await getUserData();
-    // print( "user id : $User_id");
-    if (User_id != null) return;
-    return User_id;
- }
-
-  _load() async {
-    final token = await _getToken();
-    if (token == null) return;
-
-    setState(() {
-      _future = UserServices().fetchReports(token);
-    });
-  }
-
-  @override
-  void initState() {
-    // TODO: implement initState
-
-    _userId();
-    loadUser();
-    fetchLocation();
-    _load();
-
-    socketService.initSocket();
-    socketService.connect();
-
-    socketService.on("connect", (_) {
-      print("User connected");
-
-      socketService.emit("user_connect", {
-        "userId": _userId(),
-        "id": socketService.socket.id,
-
-      });
-    });
-    super.initState();
-
-  }
-
-
-  @override
-  void dispose() {
-    // DON'T disconnect here if app full me socket run rakhna hai
-    super.dispose();
-  }
-
-  void loadUser() async {
-    user = await getUserData();
-    setState(() {});
-  }
 
   void fetchLocation() async {
     final locationService = Location();
@@ -106,16 +34,35 @@ class _HomePageContentState extends State<HomePageContent> {
     });
   }
 
+
+
+  @override
+ initState()  {
+    // _future = _loadReports();
+    // Initialize before build runs
+     _future = HomePageController().loadReports();
+
+    HomePageController().loadReports().then((reports) {
+      print("Reports Loaded: $reports");
+      print("Count: ${reports.length}");
+    });
+
+    HomePageController().setupSocket();
+     fetchLocation();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    // DON'T disconnect here if app full me socket run rakhna hai
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final height = size.height;
     final width = size.width;
-
-    // final user = widget.user['user'] ?? {};
-    // final String name = user['name'] ?? "User";
-    // print("user from home page content $user");
-    // final String requestStatus = widget.apiData['request_status'] ?? "No active request";
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
@@ -258,6 +205,8 @@ class _HomePageContentState extends State<HomePageContent> {
               //   date: "Yesterday • 8:45 PM",
               //   width: width,
               // ),
+
+
               Column(
                 children: [
                   FutureBuilder<List<ReportModel>>(
@@ -274,6 +223,8 @@ class _HomePageContentState extends State<HomePageContent> {
                       final reports = snapshot.data!;
 
                       return ListView.builder(
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
                         itemCount: reports.length,
                         itemBuilder: (_, i) {
                           final item = reports[i];
@@ -284,24 +235,47 @@ class _HomePageContentState extends State<HomePageContent> {
                               leading: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.network(
-                                  item.photos.first,
+                                  item.photos.isNotEmpty
+                                      ? item.photos.first.url
+                                      : "https://via.placeholder.com/60",
                                   width: 60,
                                   height: 60,
                                   fit: BoxFit.cover,
                                 ),
                               ),
-                              title: Text(item.type.toUpperCase()),
+
+                              title: Text(
+                                item.type.reportedType,
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(item.address),
-                                  Text("Weight: ${item.weight} kg"),
-                                  Text("Date: ${item.createdAt.split('T')[0]}"),
+                                  Text(item.location.address),
+                                  Text(
+                                    "Weight: ${item.weight.reportedWeight} kg",
+                                  ),
+                                  Text(
+                                    "Date: ${item.timestamps.createdAt.split('T')[0]}",
+                                  ),
+                                  const SizedBox(height: 10),
+
+                                  // Status text (clean + scalable)
+                                  Text(
+                                    HomePageController().getStatusLabel(
+                                      item.status.status,
+                                    ),
+                                    style: TextStyle(
+                                      color: HomePageController()
+                                          .getStatusColor(item.status.status),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ],
                               ),
-                              onTap: () {
-                                // navigate to detail page if needed
-                              },
+
+                              onTap: () {},
                             ),
                           );
                         },

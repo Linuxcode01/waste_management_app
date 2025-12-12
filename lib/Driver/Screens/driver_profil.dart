@@ -66,12 +66,13 @@ class _DriverProfileState extends State<DriverProfile> {
         title: Row(
           children: [
             CircleAvatar(
-              radius: 25 * scale,
-              child: Image(image: AssetImage("assets/images/logo.jpg")),
+              // radius: 25 * scale,
+
+              child: Image(image: NetworkImage("https://i.pinimg.com/736x/8b/16/7a/8b167af653c2399dd93b952a48740620.jpg")),
             ),
             SizedBox(width: 12 * scale),
             Text(
-              userData != null ? userData['name'] : "loading...",
+              (userData != null) ? userData['name'] : "loading...",
               style: TextStyle(
                 fontSize: 20 * scale,
                 fontWeight: FontWeight.w600,
